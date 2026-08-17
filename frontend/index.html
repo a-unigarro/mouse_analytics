@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <title>
+        Mouse Tracker
+    </title>
+</head>
+
+
+<body>
+
+<h1>
+Mouse Tracker
+</h1>
+
+<p id="position">
+</p>
+
+
+<script>
+
+const socket = new WebSocket(
+    "ws://localhost:8000/mouse"
+);
+
+
+socket.onopen = () => {
+    console.log(
+        "Connected"
+    );
+};
+
+
+document.addEventListener(
+    "mousemove",
+    (event) => {
+
+        const data = {
+            event_type: "mousemove",
+            user_id: "anonymous",
+            timestamp: new Date().toISOString(),
+            x: event.clientX,
+            y: event.clientY
+        };
+
+
+        document.getElementById(
+            "position"
+        ).innerText =
+        `x:${data.x} y:${data.y}`;
+
+
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(
+                JSON.stringify(data)
+            );
+        }
+    }
+);
+
+
+socket.onclose = () => {
+    console.log(
+        "Disconnected"
+    );
+};
+
+socket.onerror = (error) => {
+    console.error("WebSocket error:", error);
+};
+
+
+</script>
+
+</body>
+
+</html>
