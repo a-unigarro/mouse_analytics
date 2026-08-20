@@ -25,6 +25,12 @@ const socket = new WebSocket(
     "ws://localhost:8000/mouse"
 );
 
+const sessionId = crypto.randomUUID();
+
+const MAX_EVENTS_PER_SECOND = 5;
+const MIN_INTERVAL = 1000 / MAX_EVENTS_PER_SECOND;
+
+let lastSentTime = 0;
 
 socket.onopen = () => {
     console.log(
@@ -37,7 +43,17 @@ document.addEventListener(
     "mousemove",
     (event) => {
 
+        const now = Date.now();
+
+        // Throttle mouse events
+        if (now - lastSentTime < MIN_INTERVAL) {
+            return;
+        }
+
+        lastSentTime = now;
+
         const data = {
+            session_id: sessionId,
             event_type: "mousemove",
             user_id: "anonymous",
             timestamp: new Date().toISOString(),
@@ -56,7 +72,7 @@ document.addEventListener(
             socket.send(
                 JSON.stringify(data)
             );
-        }
+            }
     }
 );
 

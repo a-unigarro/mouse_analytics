@@ -1,7 +1,7 @@
 from fastapi import WebSocket
-from schemas import UserEvent
+from shared.schemas import UserEvent
+from backend.kafka_producer import send_event
 
-from kafka_producer import send_event
 
 class MouseWebSocket:
     def __init__(self):

@@ -1,5 +1,5 @@
 from fastapi import FastAPI, WebSocket
-from websocket_server import mouse_socket
+from backend.websocket_server import mouse_socket
 
 
 app = FastAPI()
