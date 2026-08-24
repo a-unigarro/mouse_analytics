@@ -8,5 +8,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY consumers/ ./consumers/
 COPY shared/ ./shared/
+COPY database/ ./database/
 
-CMD ["python","-u", "-m",  "consumers.analytics_consumer"]
+
+
+

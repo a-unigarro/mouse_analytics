@@ -26,6 +26,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_LOG_RETENTION_HOURS: 1
+      #KAFKA_CLUSTER_ID: 4L62YDgVSOeNm1SI8gBI0A
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
       interval: 10s
@@ -40,15 +41,87 @@ services:
       context: .
       dockerfile: consumers/Dockerfile
     container_name: analytics-consumer
+    command: ["python","-u", "-m",  "consumers.analytics_consumer"]
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KAFKA_TOPIC: mouse-events
       KAFKA_CONSUMER_GROUP: analytics-consumer
+      KAFKA_AGGREGATE_TOPIC: mouse-events-aggregated
       KAFKA_AUTO_OFFSET_RESET: earliest
+      WINDOW_SECONDS: 10
+      HEATMAP_GRID_SIZE: 50
       PYTHONUNBUFFERED: 1
     depends_on:
       kafka:
         condition: service_healthy
 
+
+
+  aggregate-writer-consumer:
+    build:
+      context: .
+      dockerfile: consumers/Dockerfile
+    container_name: aggregate-writer-consumer
+    command: ["python", "-u", "-m", "consumers.aggregate_writer"]
+    restart: on-failure
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_AGGREGATE_TOPIC: mouse-events-aggregated
+      KAFKA_CONSUMER_GROUP: aggregate-writer
+      KAFKA_AUTO_OFFSET_RESET: earliest
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      PYTHONUNBUFFERED: 1
+    depends_on:
+      kafka:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+
+
+############################## PostgreSQL and pgAdmin Services ##############################
+  db:
+    image: postgres:18
+    container_name: ${DB_NAME}
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432" 
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_gui    
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+
+
+
+
+
 volumes:
   kafka-data:
+  postgres_data:
+  pgadmin_data:

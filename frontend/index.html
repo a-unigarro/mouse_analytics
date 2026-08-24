@@ -77,6 +77,25 @@ document.addEventListener(
 );
 
 
+document.addEventListener("click", (event) => {
+    const data = {
+        session_id: sessionId,
+        event_type: "click",
+        user_id: "anonymous",
+        timestamp: new Date().toISOString(),
+        x: event.clientX,
+        y: event.clientY
+    };
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send(
+            JSON.stringify(data)
+        );
+        }
+});
+
+
+
+
 socket.onclose = () => {
     console.log(
         "Disconnected"
