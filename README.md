@@ -1,37 +1,86 @@
-# Mouse Analytics
 
-Project with **Apache Kafka**, using mouse-interaction data (e.g. movements, clicks) as the event stream.
+## Tech stack
 
-## Overview
+Apache Kafka 4.3.1 (KRaft mode) · FastAPI + WebSockets · confluent-kafka · Pydantic · SQLAlchemy · PostgreSQL + pgAdmin · Docker Compose
 
-The goal of this project is to build a end-to-end pipeline where a **frontend** captures mouse events, sends them to a **backend**, and the backend publishes/consumes them through **Kafka**. It's meant as a hands-on sandbox to learn Kafka concepts (producers, consumers, topics, KRaft mode) rather than a production-ready analytics tool.
+## Kafka topics
 
-## Tech Stack
+| Topic | Partitions | Keyed by | Produced by | Consumed by |
+|---|---|---|---|---|
+| `mouse-events` | 3 | `session_id` | backend | `analytics-consumer` |
+| `mouse-events-aggregated` | 3 | `session_id` / grid cell | `analytics-consumer` | `aggregate-writer` |
 
-- **Apache Kafka** (`apache/kafka:4.3.1`) running in **KRaft mode**
-- **Docker Compose** for local orchestration
-- Backend and frontend services (see respective folders for details)
+Topics are created explicitly by the `kafka-init` service on startup (`KAFKA_AUTO_CREATE_TOPICS_ENABLE=false`), so partition counts are never left to Kafka's auto-create default.
 
-## Getting Started
+**Listeners:** the broker exposes `localhost:9092` for processes on the host (e.g. the backend, run outside Docker) and `kafka:29092` for services on the Docker network. Inside a container, `localhost` refers to that container itself.
 
-### Prerequisites
+## Getting started
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose installed
+**1. Environment** — create a `.env` in the project root:
 
-### Run Kafka locally
+```env
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KAFKA_TOPIC=mouse-events
+KAFKA_CONSUMER_GROUP=analytics-consumer
+KAFKA_AUTO_OFFSET_RESET=earliest
+KAFKA_AGGREGATE_TOPIC=mouse-events-aggregated
+
+
+#### WINDOWED AGGREGATION CONFIG (Optional, if not defined default values used.)
+WINDOW_SECONDS=10  ## 
+HEATMAP_GRID_SIZE=50 ##
+
+#### Second consumer  
+KAFKA_CONSUMER_GROUP=aggregate-writer
+
+
+#### DATABASE CONFIG
+DB_USER=user_database
+DB_PASSWORD=password_database
+DB_NAME=mouse_analytics_db
+DB_HOST=localhost
+DB_PORT=5432
+
+
+#### PGADMIN CONFIG
+PGADMIN_EMAIL=example@example.com
+PGADMIN_PASSWORD=123456
+PGADMIN_PORT=8080
+```
+
+**2. Start the infrastructure:**
 
 ```bash
 docker compose up -d
 ```
 
-This starts a single-node Kafka broker (KRaft mode) listening on `localhost:9092`.
+Brings up Kafka, creates both topics (`kafka-init`), call the consumers services (`analytics-consumer`, `aggregate-writer`), Postgres, and pgAdmin. Check status with `docker compose ps`, The service `kafka-init` should complete and exit, the rest should stay running.
 
-### Backend / Frontend
+**3. Start the backend:**
 
-See the `backend/` and `frontend/` directories for service-specific setup instructions.
+```bash
+pip install -r requirements.txt
+uvicorn backend.main:app --reload
+```
 
-## Status
+**4. Open the frontend** — `frontend/index.html` in a browser. Moving the mouse and clicking sends events through the whole pipeline.
 
-This project is a toy/learning model and is evolving as new Kafka concepts are explored (topics, partitions, consumer groups, schema handling, etc.).
+**5. Inspect the results** — pgAdmin at `http://localhost:8080`, tables `session_click_rates` and `heatmap_cells`.
+
+## Useful commands
+
+```bash
+# List topics
+docker exec -it kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+
+# Watch raw / aggregated events live
+docker exec -it kafka /opt/kafka/bin/kafka-console-consumer.sh --topic mouse-events --bootstrap-server localhost:9092
+docker exec -it kafka /opt/kafka/bin/kafka-console-consumer.sh --topic mouse-events-aggregated --bootstrap-server localhost:9092
+
+# Logs for a specific service
+docker compose logs kafka-init
+docker compose logs db
+```
 
 This project is under development
+
