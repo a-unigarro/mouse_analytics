@@ -72,7 +72,39 @@ services:
           --bootstrap-server kafka:29092 \
           --list
   
-  
+###################################### Backend API Service ##############################
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: api
+    command: ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./shared:/app/shared
+      - ./database:/app/database
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      HEATMAP_GRID_SIZE: 50
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      PYTHONUNBUFFERED: 1
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+
+
+
 ################################ Consumers ##############################  
   
   analytics-consumer:

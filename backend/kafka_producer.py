@@ -1,11 +1,13 @@
+import os
+
 from confluent_kafka import Producer
 import json
-
+from dotenv import load_dotenv
 from shared.schemas import UserEvent
 
-
+load_dotenv()
 producer = Producer({
-    "bootstrap.servers": "localhost:9092",
+    "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
     "linger.ms": 10,
     "batch.size": 16384,
 })
