@@ -96,7 +96,7 @@ consumer = Consumer({
 consumer.subscribe([KAFKA_TOPIC])
  
  
-setup_tables(force_refresh=True)
+setup_tables(force_refresh=False)
  
 print(
     f"Aggregate writer started. "

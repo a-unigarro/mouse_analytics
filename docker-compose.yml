@@ -79,7 +79,7 @@ services:
     build:
       context: .
       dockerfile: consumers/Dockerfile
-    container_name: analytics-consumer
+    #container_name: analytics-consumer
     command: ["python","-u", "-m",  "consumers.analytics_consumer"]
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
@@ -123,6 +123,22 @@ services:
         condition: service_completed_successfully
       db:
         condition: service_healthy
+
+####################################### Kafka UI Service ##############################
+
+  kafka-ui:
+    image: ghcr.io/kafbat/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8081:8080"
+    environment:
+      DYNAMIC_CONFIG_ENABLED: "true"
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    depends_on:
+      kafka:
+        condition: service_healthy
+
 
 
 ############################## PostgreSQL and pgAdmin Services ##############################

@@ -1,7 +1,7 @@
 
 ## Tech stack
 
-Apache Kafka 4.3.1 (KRaft mode) · FastAPI + WebSockets · confluent-kafka · Pydantic · SQLAlchemy · PostgreSQL + pgAdmin · Docker Compose
+Apache Kafka 4.3.1 (KRaft mode) + Kafka UI · FastAPI + WebSockets · confluent-kafka · Pydantic · SQLAlchemy · PostgreSQL + pgAdmin · Docker Compose
 
 ## Kafka topics
 
@@ -53,6 +53,14 @@ PGADMIN_PORT=8080
 ```bash
 docker compose up -d
 ```
+**## Scaling consumers**
+
+Consumer services can be scaled horizontally using Docker Compose.
+
+For example, to run three instances of the analytics consumer:
+```bash
+docker compose up -d --scale analytics-consumer=3
+```
 
 Brings up Kafka, creates both topics (`kafka-init`), call the consumers services (`analytics-consumer`, `aggregate-writer`), Postgres, and pgAdmin. Check status with `docker compose ps`, The service `kafka-init` should complete and exit, the rest should stay running.
 
@@ -80,7 +88,23 @@ docker exec -it kafka /opt/kafka/bin/kafka-console-consumer.sh --topic mouse-eve
 # Logs for a specific service
 docker compose logs kafka-init
 docker compose logs db
+
+
+# Check consumer groups**
+docker exec -it kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --list
+
+
+# Check a specific consumer group 
+
+docker exec -it kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --describe \
+  --group group_name
+
 ```
+
 
 This project is under development
 
