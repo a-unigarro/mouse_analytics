@@ -55,11 +55,12 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 16px;
             padding: 24px;
-            max-width: 900px;
+            width: 900px;
             margin: 0 auto;
         }
 
         .tile {
+            position: relative;
             aspect-ratio: 1;
             border-radius: 10px;
             display: flex;
@@ -75,12 +76,29 @@
             transform: scale(0.96);
         }
 
+        .tile .badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            min-width: 20px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.55);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            display: none;
+        }
+
+        .tile .badge.visible {
+            display: block;
+        }
+
         #heatmap-canvas {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
             pointer-events: none;
             z-index: 10;
         }
@@ -95,6 +113,7 @@
             <span id="position"></span>
             <button id="toggle-click-heatmap">Click heatmap</button>
             <button id="toggle-move-heatmap">Movement heatmap</button>
+            <button id="toggle-element-counts">Tile clicks</button>
         </div>
     </header>
 
@@ -140,9 +159,9 @@
             lastSentTime = now;
 
             document.getElementById("position").innerText =
-                `x:${event.clientX} y:${event.clientY}`;
+                `x:${event.pageX} y:${event.pageY}`;
 
-            sendEvent("mousemove", event.clientX, event.clientY, null);
+            sendEvent("mousemove", event.pageX, event.pageY, null);
         });
 
         // --- Tile grid: meaningful click targets instead of blank space ---
@@ -159,6 +178,7 @@
         ];
 
         const grid = document.getElementById("tile-grid");
+        const tileBadges = {}; // tile.id -> badge <span> element
 
         TILES.forEach((tile) => {
             const el = document.createElement("div");
@@ -167,20 +187,30 @@
             el.dataset.element = tile.id;
             el.textContent = tile.emoji;
 
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.textContent = "0";
+            el.appendChild(badge);
+            tileBadges[tile.id] = badge;
+
             el.addEventListener("click", (event) => {
-                sendEvent("click", event.clientX, event.clientY, tile.id);
+                sendEvent("click", event.pageX, event.pageY, tile.id);
             });
 
             grid.appendChild(el);
         });
 
-        // --- Heatmap overlay ---
+        // --- Heatmap overlay (spatial: grid_x/grid_y) ---
         const canvas = document.getElementById("heatmap-canvas");
         const ctx = canvas.getContext("2d");
 
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            // Full document size, not just the visible viewport — the canvas
+            // needs to cover everything that can be scrolled to, since it's
+            // now positioned in normal document flow (not fixed to the
+            // viewport) so it scrolls together with the tiles beneath it.
+            canvas.width = document.documentElement.scrollWidth;
+            canvas.height = document.documentElement.scrollHeight;
         }
         window.addEventListener("resize", resizeCanvas);
         resizeCanvas();
@@ -247,6 +277,51 @@
 
         document.getElementById("toggle-move-heatmap")
             .addEventListener("click", () => setActiveHeatmap("mousemove"));
+
+        // --- Per-tile click-count badges (element-based, not spatial) ---
+        let elementCountsActive = false;
+        let elementPollTimer = null;
+
+        async function fetchAndShowElementCounts() {
+            try {
+                const res = await fetch(`${API_BASE}/elements?event_type=click`);
+                if (!res.ok) return;
+                const data = await res.json();
+
+                // Reset all badges to 0 first, so tiles with no clicks show 0
+                // rather than a stale value from a previous poll.
+                Object.values(tileBadges).forEach((badge) => {
+                    badge.textContent = "0";
+                });
+
+                data.elements.forEach((entry) => {
+                    const badge = tileBadges[entry.element];
+                    if (badge) badge.textContent = entry.count;
+                });
+            } catch (err) {
+                console.error("Failed to load element counts:", err);
+            }
+        }
+
+        function toggleElementCounts() {
+            const btn = document.getElementById("toggle-element-counts");
+            elementCountsActive = !elementCountsActive;
+            btn.classList.toggle("active", elementCountsActive);
+
+            Object.values(tileBadges).forEach((badge) => {
+                badge.classList.toggle("visible", elementCountsActive);
+            });
+
+            if (elementCountsActive) {
+                fetchAndShowElementCounts();
+                elementPollTimer = setInterval(fetchAndShowElementCounts, 3000);
+            } else if (elementPollTimer) {
+                clearInterval(elementPollTimer);
+            }
+        }
+
+        document.getElementById("toggle-element-counts")
+            .addEventListener("click", toggleElementCounts);
     </script>
 
 </body>

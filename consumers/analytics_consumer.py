@@ -178,7 +178,6 @@ def process_heatmap_aggregates(
 def flush_window():
     global session_event_counts
     global heatmap_counts
-    global heatmap_counts_click
     global window_start
 
     window_end = time.time()
@@ -252,7 +251,7 @@ try:
                 
                 heatmap_counts[(event.session_id, event.event_type, grid_x, grid_y, event.element)] += 1
 
-        # Check the window on every poll cycle (~1s)
+        # Check the window on every poll cycle (1s)
         if time.time() - window_start >= WINDOW_SECONDS:
             flush_window()
 

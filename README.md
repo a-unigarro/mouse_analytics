@@ -62,9 +62,11 @@ For example, to run three instances of the analytics consumer:
 docker compose up -d --scale analytics-consumer=3
 ```
 
-Brings up Kafka, creates both topics (`kafka-init`), call the consumers services (`analytics-consumer`, `aggregate-writer`), Postgres, and pgAdmin. Check status with `docker compose ps`, The service `kafka-init` should complete and exit, the rest should stay running.
+Brings up Kafka, creates both topics (`kafka-init`), the FastAPI backend (`api`), both consumer services (`analytics-consumer`, `aggregate-writer`), Postgres, pgAdmin, and Kafka UI. Check status with `docker compose ps`. Kafka-init should complete and exit, everything else should stay running.
 
 **3. Start the backend:**
+
+Already running as the `api` service (`http://localhost:8000`), with `--reload` enabled via a source volume mount. Only run it manually with the command below if you're working outside Docker:
 
 ```bash
 pip install -r requirements.txt
@@ -73,7 +75,7 @@ uvicorn backend.main:app --reload
 
 **4. Open the frontend** — `frontend/index.html` in a browser. Moving the mouse and clicking sends events through the whole pipeline.
 
-**5. Inspect the results** — pgAdmin at `http://localhost:8080`, tables `session_click_rates` and `heatmap_cells`.
+**5. Inspect the results** — pgAdmin at `http://localhost:8080`, tables `session_click_rates` and `heatmap_cells`. Kafka UI at `http://localhost:8081` for topics, partitions, and consumer group lag. 
 
 ## Useful commands
 
@@ -106,5 +108,13 @@ docker exec -it kafka /opt/kafka/bin/kafka-consumer-groups.sh \
 ```
 
 
-This project is under development
+## Useful commands
+
+| Button | What it shows |
+|---|---|
+| **Click heatmap** | Polls `/api/heatmap?event_type=click` every 3s and overlays a spatial heatmap (pixel grid cells) of where clicks have landed on the page |
+| **Movement heatmap** | Same overlay, but for `mousemove` events instead of clicks |
+| **Tile clicks** | Polls `/api/elements?event_type=click` every 3s and shows a badge on each tile with its total click count |
+
+All three are aggregated **across every session that's ever used the page**, not just your current one. The heatmap and tile-click views are independent and can be toggled on simultaneously, since they show different things (spatial position vs. which specific element).
 
