@@ -97,7 +97,6 @@ def publish_aggregate(record: SessionAggregateEvent | HeatmapAggregateEvent, key
 
 session_event_counts = defaultdict(int)
 heatmap_counts = defaultdict(int)
-heatmap_counts_click = defaultdict(int)  # key: (grid_x, grid_y)
 window_start = time.time()
 
 # ============================================================
@@ -146,27 +145,11 @@ def process_session_aggregates( window_start_iso: str,
 # ============================================================
 
 def process_heatmap_aggregates( 
-                                counts,
-                                event_type,
+                                counts,                                
                                 window_start_iso,
                                 window_end_iso,
                             ):
-    top_cells = sorted(
-        counts.items(),
-        key=lambda item: item[1],
-        reverse=True,
-    )[:5]
-
-    print(
-        f"\nTop {event_type} heatmap cells:"
-    )
-
-    for (session_id, grid_x, grid_y), count in top_cells:
-        print(
-            f"Session:{session_id}: ({grid_x}, {grid_y}): {count}"
-        )
-
-    for (session_id, grid_x, grid_y), count in counts.items():
+    for (session_id, event_type, grid_x, grid_y, element), count in counts.items():
         aggregate = HeatmapAggregateEvent(
             session_id=session_id,
             metric="heatmap_cell",            
@@ -175,12 +158,13 @@ def process_heatmap_aggregates(
             event_type=event_type,
             grid_x=grid_x,
             grid_y=grid_y,
+            element=element,
             count=count,
         )
 
         publish_aggregate(
             aggregate,
-            key=f"{session_id}:{grid_x}:{grid_y}",
+            key=session_id,
         )
 
 
@@ -223,14 +207,6 @@ def flush_window():
 
     process_heatmap_aggregates(
         heatmap_counts,
-        "mousemove",
-        window_start_iso,
-        window_end_iso,
-    )
-
-    process_heatmap_aggregates(
-        heatmap_counts_click,
-        "click",
         window_start_iso,
         window_end_iso,
     )
@@ -238,7 +214,6 @@ def flush_window():
     # Reset the state for the next window.
     session_event_counts = defaultdict(int)
     heatmap_counts = defaultdict(int)
-    heatmap_counts_click = defaultdict(int)
 
     window_start = time.time()
 
@@ -275,11 +250,7 @@ try:
                 grid_x = event.x // HEATMAP_GRID_SIZE
                 grid_y = event.y // HEATMAP_GRID_SIZE
                 
-                if event.event_type == "mousemove":
-                    heatmap_counts[(event.session_id, grid_x, grid_y)] += 1
-
-                if event.event_type == "click":
-                    heatmap_counts_click[(event.session_id, grid_x, grid_y)] += 1
+                heatmap_counts[(event.session_id, event.event_type, grid_x, grid_y, event.element)] += 1
 
         # Check the window on every poll cycle (~1s)
         if time.time() - window_start >= WINDOW_SECONDS:

@@ -37,6 +37,7 @@ class SessionAggregateEvent(BaseAggregateEvent):
 class HeatmapAggregateEvent(BaseAggregateEvent):    
     grid_x: int 
     grid_y: int 
+    element: str | None = None
 
 
     

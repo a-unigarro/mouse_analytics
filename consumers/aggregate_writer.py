@@ -65,6 +65,7 @@ def insert_heatmap_aggregate(event: HeatmapAggregateEvent):
         event_type=event.event_type,
         grid_x=event.grid_x,
         grid_y=event.grid_y,
+        element=event.element,
         count=event.count,
     )
     with SessionLocal() as session:

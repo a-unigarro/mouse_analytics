@@ -25,4 +25,5 @@ class HeatmapCell(Base):
     grid_x = Column(Integer, nullable=False)
     grid_y = Column(Integer, nullable=False)
     count = Column(Integer, nullable=False)
+    element = Column(String, nullable=True) 
  

@@ -1,113 +1,253 @@
 <!DOCTYPE html>
-
 <html>
 
 <head>
-    <title>
-        Mouse Tracker
-    </title>
-</head>
+    <title>Mouse Analytics</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: system-ui, sans-serif;
+            background: #14161a;
+            color: #eee;
+        }
 
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            border-bottom: 1px solid #2a2d33;
+        }
+
+        h1 {
+            font-size: 18px;
+            margin: 0;
+        }
+
+        #position {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        button {
+            background: #2a2d33;
+            color: #eee;
+            border: 1px solid #3a3d44;
+            border-radius: 6px;
+            padding: 8px 14px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        button.active {
+            background: #4a7cff;
+            border-color: #4a7cff;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            padding: 24px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .tile {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.08s ease;
+        }
+
+        .tile:active {
+            transform: scale(0.96);
+        }
+
+        #heatmap-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
 
 <body>
 
-<h1>
-Mouse Tracker
-</h1>
+    <header>
+        <h1>Mouse Analytics</h1>
+        <div class="controls">
+            <span id="position"></span>
+            <button id="toggle-click-heatmap">Click heatmap</button>
+            <button id="toggle-move-heatmap">Movement heatmap</button>
+        </div>
+    </header>
 
-<p id="position">
-</p>
+    <div class="grid" id="tile-grid"></div>
 
+    <canvas id="heatmap-canvas"></canvas>
 
-<script>
+    <script>
+        const socket = new WebSocket("ws://localhost:8000/mouse");
+        const API_BASE = "http://localhost:8000/api";
 
-const socket = new WebSocket(
-    "ws://localhost:8000/mouse"
-);
+        const sessionId = crypto.randomUUID();
 
-const sessionId = crypto.randomUUID();
+        const MAX_EVENTS_PER_SECOND = 5;
+        const MIN_INTERVAL = 1000 / MAX_EVENTS_PER_SECOND;
+        let lastSentTime = 0;
 
-const MAX_EVENTS_PER_SECOND = 5;
-const MIN_INTERVAL = 1000 / MAX_EVENTS_PER_SECOND;
+        socket.onopen = () => console.log("Connected");
+        socket.onclose = () => console.log("Disconnected");
+        socket.onerror = (error) => console.error("WebSocket error:", error);
 
-let lastSentTime = 0;
+        function sendEvent(eventType, x, y, element) {
+            const data = {
+                session_id: sessionId,
+                event_type: eventType,
+                user_id: "anonymous",
+                timestamp: new Date().toISOString(),
+                x: x,
+                y: y,
+                page: "gallery",
+                element: element || null
+            };
 
-socket.onopen = () => {
-    console.log(
-        "Connected"
-    );
-};
-
-
-document.addEventListener(
-    "mousemove",
-    (event) => {
-
-        const now = Date.now();
-
-        // Throttle mouse events
-        if (now - lastSentTime < MIN_INTERVAL) {
-            return;
-        }
-
-        lastSentTime = now;
-
-        const data = {
-            session_id: sessionId,
-            event_type: "mousemove",
-            user_id: "anonymous",
-            timestamp: new Date().toISOString(),
-            x: event.clientX,
-            y: event.clientY
-        };
-
-
-        document.getElementById(
-            "position"
-        ).innerText =
-        `x:${data.x} y:${data.y}`;
-
-
-        if (socket.readyState === WebSocket.OPEN) {
-            socket.send(
-                JSON.stringify(data)
-            );
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(data));
             }
-    }
-);
-
-
-document.addEventListener("click", (event) => {
-    const data = {
-        session_id: sessionId,
-        event_type: "click",
-        user_id: "anonymous",
-        timestamp: new Date().toISOString(),
-        x: event.clientX,
-        y: event.clientY
-    };
-    if (socket.readyState === WebSocket.OPEN) {
-        socket.send(
-            JSON.stringify(data)
-        );
         }
-});
 
+        // --- Mousemove tracking (unchanged behavior, throttled) ---
+        document.addEventListener("mousemove", (event) => {
+            const now = Date.now();
+            if (now - lastSentTime < MIN_INTERVAL) return;
+            lastSentTime = now;
 
+            document.getElementById("position").innerText =
+                `x:${event.clientX} y:${event.clientY}`;
 
+            sendEvent("mousemove", event.clientX, event.clientY, null);
+        });
 
-socket.onclose = () => {
-    console.log(
-        "Disconnected"
-    );
-};
+        // --- Tile grid: meaningful click targets instead of blank space ---
+        const TILES = [
+            { id: "tile-cat", emoji: "\u{1F431}", color: "#3b5bdb" },
+            { id: "tile-rocket", emoji: "\u{1F680}", color: "#e8590c" },
+            { id: "tile-globe", emoji: "\u{1F30D}", color: "#2f9e44" },
+            { id: "tile-book", emoji: "\u{1F4DA}", color: "#9c36b5" },
+            { id: "tile-coffee", emoji: "\u2615", color: "#795548" },
+            { id: "tile-star", emoji: "\u2B50", color: "#f08c00" },
+            { id: "tile-music", emoji: "\u{1F3B5}", color: "#1098ad" },
+            { id: "tile-camera", emoji: "\u{1F4F7}", color: "#495057" },
+            { id: "tile-plant", emoji: "\u{1F331}", color: "#37b24d" },
+        ];
 
-socket.onerror = (error) => {
-    console.error("WebSocket error:", error);
-};
+        const grid = document.getElementById("tile-grid");
 
+        TILES.forEach((tile) => {
+            const el = document.createElement("div");
+            el.className = "tile";
+            el.style.background = tile.color;
+            el.dataset.element = tile.id;
+            el.textContent = tile.emoji;
 
-</script>
+            el.addEventListener("click", (event) => {
+                sendEvent("click", event.clientX, event.clientY, tile.id);
+            });
+
+            grid.appendChild(el);
+        });
+
+        // --- Heatmap overlay ---
+        const canvas = document.getElementById("heatmap-canvas");
+        const ctx = canvas.getContext("2d");
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        let activeHeatmap = null; // "click" | "mousemove" | null
+        let pollTimer = null;
+
+        async function fetchAndDrawHeatmap(eventType) {
+            try {
+                const res = await fetch(`${API_BASE}/heatmap?event_type=${eventType}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                drawHeatmap(data);
+            } catch (err) {
+                console.error("Failed to load heatmap:", err);
+            }
+        }
+
+        function drawHeatmap(data) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (!data.cells.length) return;
+
+            const gridSize = data.grid_size;
+            const maxCount = Math.max(...data.cells.map((c) => c.count));
+
+            data.cells.forEach((cell) => {
+                const intensity = cell.count / maxCount; // 0..1
+                ctx.fillStyle = `rgba(255, 70, 70, ${0.15 + intensity * 0.55})`;
+                ctx.fillRect(
+                    cell.grid_x * gridSize,
+                    cell.grid_y * gridSize,
+                    gridSize,
+                    gridSize
+                );
+            });
+        }
+
+        function setActiveHeatmap(eventType) {
+            const clickBtn = document.getElementById("toggle-click-heatmap");
+            const moveBtn = document.getElementById("toggle-move-heatmap");
+
+            if (activeHeatmap === eventType) {
+                // Toggle off
+                activeHeatmap = null;
+                clickBtn.classList.remove("active");
+                moveBtn.classList.remove("active");
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (pollTimer) clearInterval(pollTimer);
+                return;
+            }
+
+            activeHeatmap = eventType;
+            clickBtn.classList.toggle("active", eventType === "click");
+            moveBtn.classList.toggle("active", eventType === "mousemove");
+
+            if (pollTimer) clearInterval(pollTimer);
+            fetchAndDrawHeatmap(eventType);
+            pollTimer = setInterval(() => fetchAndDrawHeatmap(eventType), 3000);
+        }
+
+        document.getElementById("toggle-click-heatmap")
+            .addEventListener("click", () => setActiveHeatmap("click"));
+
+        document.getElementById("toggle-move-heatmap")
+            .addEventListener("click", () => setActiveHeatmap("mousemove"));
+    </script>
 
 </body>
 
