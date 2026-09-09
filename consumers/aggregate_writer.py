@@ -86,45 +86,63 @@ def handle_message(data: dict):
 # Kafka consumer
 # ============================================================
  
-consumer = Consumer({
-    "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
-    "group.id": KAFKA_CONSUMER_GROUP,
-    "auto.offset.reset": KAFKA_AUTO_OFFSET_RESET,
-})
-consumer.subscribe([KAFKA_TOPIC])
- 
- 
-setup_tables(force_refresh=False)
- 
-print(
-    f"Aggregate writer started. "
-    f"Topic={KAFKA_TOPIC} "
-    f"Group={KAFKA_CONSUMER_GROUP}"
-)
- 
+#consumer = Consumer({
+#    "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
+#    "group.id": KAFKA_CONSUMER_GROUP,
+#    "auto.offset.reset": KAFKA_AUTO_OFFSET_RESET,
+#})
+#consumer.subscribe([KAFKA_TOPIC])
+
+def create_consumer():
+    consumer = Consumer({
+        "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
+        "group.id": KAFKA_CONSUMER_GROUP,
+        "auto.offset.reset": KAFKA_AUTO_OFFSET_RESET,
+    })
+
+    consumer.subscribe([KAFKA_TOPIC])
+
+    return consumer
 
 
 
-try:
-    while True:
-        message = consumer.poll(1.0)
- 
-        if message is None:
-            continue
+def main():
+    consumer = create_consumer()
 
-        if message.error():
-            print(f"Kafka error: {message.error()}")
-            continue
+    setup_tables(force_refresh=False)
 
-        try:
-            data = json.loads(message.value().decode("utf-8"))
-            handle_message(data)
-        except Exception as exc:
-            # Don't let one bad/unexpected record kill the consumer.
-            print(f"Failed to process message: {exc}")
- 
-except KeyboardInterrupt:
-    print("Stopping aggregate writer...")
- 
-finally:
-    consumer.close()
+    print(
+        f"Aggregate writer started. "
+        f"Topic={KAFKA_TOPIC} "
+        f"Group={KAFKA_CONSUMER_GROUP}"
+    )
+
+    try:
+        while True:
+            message = consumer.poll(1.0)
+
+            if message is None:
+                continue
+
+            if message.error():
+                print(f"Kafka error: {message.error()}")
+                continue
+
+            try:
+                data = json.loads(
+                    message.value().decode("utf-8")
+                )
+
+                handle_message(data)
+
+            except Exception as exc:
+                print(f"Failed to process message: {exc}")
+
+    except KeyboardInterrupt:
+        print("Stopping aggregate writer...")
+
+    finally:
+        consumer.close()
+
+if __name__ == "__main__":
+    main()

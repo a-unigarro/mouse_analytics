@@ -164,7 +164,7 @@ def create_session_aggregates(  counts,
 # Heatmap aggregation
 # ============================================================
 def get_heatmap_cell(x, y, grid_size):
-    return x // grid_size, y // grid_size
+    return x // grid_size, y // grid_size 
 
 def create_heatmap_aggregates( 
                                 counts,                                

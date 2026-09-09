@@ -45,7 +45,7 @@ def test_session_click_aggregation_multiple_sessions():
         window_end_iso="2026-09-07T10:00:10+00:00",
         duration=10,
     )
-    print(counts.items())
+
 
     assert len(aggregates) == 2
 
@@ -115,3 +115,31 @@ def test_heatmap_aggregation_multiple_cells():
 
     assert aggregates[1].grid_x == 4
     assert aggregates[1].count == 2
+
+
+def test_session_aggregation_empty_counts():
+    aggregates = create_session_aggregates(
+        counts={},
+        window_start_iso="2026-09-07T10:00:00+00:00",
+        window_end_iso="2026-09-07T10:00:10+00:00",
+        duration=10,
+    )
+
+    assert aggregates == []
+
+
+def test_heatmap_aggregation_empty_counts():
+    aggregates = create_heatmap_aggregates(
+        counts={},
+        window_start_iso="2026-09-07T10:00:00+00:00",
+        window_end_iso="2026-09-07T10:00:10+00:00",
+    )
+
+    assert aggregates == []
+
+def test_heatmap_cell_boundary():
+    assert get_heatmap_cell(49, 49, 50) == (0, 0)
+    assert get_heatmap_cell(50, 50, 50) == (1, 1)
+
+def test_heatmap_cell_different_grid_size():
+    assert get_heatmap_cell(100, 75, 25) == (4, 3)
