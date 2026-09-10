@@ -1,4 +1,4 @@
-from database.database import SessionLocal, Base, engine
+from database.database import SessionLocal 
 from database.models import HeatmapCell, SessionClickRate
 from consumers.aggregate_writer import (
     insert_heatmap_aggregate,
@@ -10,8 +10,7 @@ from shared.schemas import (
 )
 
 
-def test_insert_heatmap_aggregate_integration():
-    Base.metadata.create_all(bind=engine)
+def test_insert_heatmap_aggregate_integration(database_engine):
 
     event = HeatmapAggregateEvent(
         session_id="integration-test-session",
@@ -41,8 +40,8 @@ def test_insert_heatmap_aggregate_integration():
     assert row.count == 8
 
 
-def test_insert_session_aggregate_integration():
-    Base.metadata.create_all(bind=engine)
+def test_insert_session_aggregate_integration(database_engine):
+
 
     event = SessionAggregateEvent(
         session_id="integration-session-2",
