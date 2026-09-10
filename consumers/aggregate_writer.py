@@ -2,11 +2,11 @@ from confluent_kafka import Consumer
 import json
 import os
 from dotenv import load_dotenv
-from database.database import engine, SessionLocal, Base
+from database.database import SessionLocal, Base, configure_database
 from database.models import SessionClickRate, HeatmapCell
 from shared.schemas import SessionAggregateEvent, HeatmapAggregateEvent
  
- 
+# Load the variables from the .env file
 load_dotenv()
 
 
@@ -28,6 +28,7 @@ KAFKA_AUTO_OFFSET_RESET = os.getenv("KAFKA_AUTO_OFFSET_RESET", "earliest")
 def setup_tables(force_refresh: bool = False):
     """Creates all tables registered on Base if they don't already exist.
     If force_refresh is True, drops and recreates them (useful in dev)."""
+    engine = configure_database()
     if force_refresh:
         print("Dropping and recreating tables...")
         Base.metadata.drop_all(bind=engine)
