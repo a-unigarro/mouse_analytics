@@ -26,10 +26,8 @@ engine = None
 # Database initialization
 def configure_database():
     global engine
-
     engine = create_engine(DATABASE_URL)
     SessionLocal.configure(bind=engine)
-
     return engine
 
 
