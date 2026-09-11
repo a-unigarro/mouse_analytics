@@ -96,3 +96,22 @@ jobs:
           push: true
           tags: |
             ${{ vars.DOCKERHUB_USERNAME }}/mouse-analytics:consumers-${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Oracle VM
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ubuntu
+          key: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/mouse_analytics
+
+            IMAGE_TAG=${{ github.sha }} docker compose -f docker-compose.prod.yml pull
+
+            IMAGE_TAG=${{ github.sha }} docker compose -f docker-compose.prod.yml up -d
