@@ -77,7 +77,7 @@ services:
 
 
   api:
-    image: apunigarro/mouse-analytics-backend:${IMAGE_TAG}
+    image: apunigarro/mouse-analytics:backend-${IMAGE_TAG}
     command: ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 
@@ -108,7 +108,7 @@ services:
 
 
   analytics-consumer:
-    image: apunigarro/mouse-analytics-consumers:${IMAGE_TAG}
+    image: apunigarro/mouse-analytics:consumers-${IMAGE_TAG}
 
     command:  ["python","-u", "-m",  "consumers.analytics_consumer"]
 
@@ -132,7 +132,7 @@ services:
 
 
   aggregate-writer-consumer:
-    image: apunigarro/mouse-analytics-consumers:${IMAGE_TAG}
+    image: apunigarro/mouse-analytics:consumers-${IMAGE_TAG}
 
     command:  ["python","-u", "-m",  "consumers.aggregate_writer"]
 
