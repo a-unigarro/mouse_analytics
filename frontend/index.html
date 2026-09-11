@@ -122,8 +122,13 @@
     <canvas id="heatmap-canvas"></canvas>
 
     <script>
-        const socket = new WebSocket("ws://localhost:8000/mouse");
-        const API_BASE = "http://localhost:8000/api";
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+
+        const socket = new WebSocket(
+            `${protocol}//${window.location.host}/mouse`
+        );
+
+        const API_BASE = `${window.location.protocol}//${window.location.host}/api`;
 
         const sessionId = crypto.randomUUID();
 

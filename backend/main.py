@@ -1,9 +1,15 @@
+from pathlib import Path
+
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+
 from backend.websocket_server import mouse_socket
 from backend.read_api import router as read_router
-app = FastAPI()
+from database.database import configure_database
 
+app = FastAPI()
+configure_database()
 
 
 # Dev-only, permissive CORS so the static frontend (opened as a file or
@@ -18,11 +24,11 @@ app.add_middleware(
 app.include_router(read_router, prefix="/api")
 
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 @app.get("/")
 def home():
-    return {
-        "message": "Mouse tracking server running"
-    }
+    return FileResponse(BASE_DIR / "frontend" / "index.html")
 
 
 @app.websocket("/mouse") #### chang the protocol to ws://localhost:8000/mouse
